@@ -1,9 +1,71 @@
+<?php
+$resultData = null;
+$errorMsg = '';
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $ip = $_SERVER['REMOTE_ADDR'];
+    $data = date('d/m/Y');
+    $ora = date('H:i:s');
+
+    $nome = trim($_POST['nome'] ?? '');
+    $peso_str = trim($_POST['peso'] ?? '');
+    $altezza_str = trim($_POST['altezza'] ?? '');
+
+    // Validazione dei dati con comandi standard
+    if ($nome !== '' && is_numeric($peso_str) && is_numeric($altezza_str)) {
+        $peso = (float)$peso_str;
+        $altezzaCm = (float)$altezza_str;
+
+        if ($peso > 0 && $altezzaCm > 0) {
+            $altezzaM = $altezzaCm / 100;
+            $bmi = round($peso / ($altezzaM * $altezzaM), 1);
+
+            // Determinazione categoria BMI
+            if ($bmi < 18.5) {
+                $categoria = 'Sottopeso';
+                $classe = 'status-underweight';
+            } elseif ($bmi >= 18.5 && $bmi < 25) {
+                $categoria = 'Normopeso';
+                $classe = 'status-normal';
+            } elseif ($bmi >= 25 && $bmi < 30) {
+                $categoria = 'Sovrappeso';
+                $classe = 'status-overweight';
+            } else {
+                $categoria = 'Obesità';
+                $classe = 'status-obese';
+            }
+
+            // Salvataggio nel file log.csv
+            $rigaLog = "$data,$ora,$ip,\"$nome\",$altezzaCm,$peso,$bmi,$categoria\n";
+            file_put_contents('log.csv', $rigaLog, FILE_APPEND);
+
+            $resultData = [
+                'nome' => $nome,
+                'bmi' => $bmi,
+                'categoria' => $categoria,
+                'classe' => $classe
+            ];
+        } else {
+            // Log dati non validi
+            $rigaLog = "$data,$ora,$ip,NOT_VALID,NOT_VALID,NOT_VALID,NOT_VALID,NOT_VALID\n";
+            file_put_contents('log.csv', $rigaLog, FILE_APPEND);
+            $errorMsg = "Dati non validi.";
+        }
+    } else {
+        // Log dati non validi
+        $rigaLog = "$data,$ora,$ip,NOT_VALID,NOT_VALID,NOT_VALID,NOT_VALID,NOT_VALID\n";
+        file_put_contents('log.csv', $rigaLog, FILE_APPEND);
+        $errorMsg = "Dati non validi.";
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="it">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calcolatore BMI</title>
     <style>
-        /* CSS Reset e stili base */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -11,36 +73,24 @@
         }
 
         body {
-            /* Font senza grazie per tutta la pagina */
             font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            
-            /* Sfondo pagina e colore testo */
             background-color: #f1f3f5;
             color: #1f2328;
-
-            /* Centratura verticale ed orizzontale con CSS Grid */
             display: grid;
             place-items: center;
             min-height: 100vh;
-
-            /* Spazio laterale di 60px sui lati destro e sinistro */
             padding: 0 60px;
         }
 
-        /* Container principale della card */
         .card-container {
-            /* Larghezza fixed/max a 360px */
             width: 100%;
             max-width: 360px;
-            
-            /* Sfondo bianco, padding 24px, border-radius 12px e ombra */
             background-color: #ffffff;
             padding: 24px;
             border-radius: 12px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         }
 
-        /* Titolo della pagina/card */
         .title {
             font-size: 32px;
             font-weight: 700;
@@ -49,14 +99,12 @@
             text-align: center;
         }
 
-        /* Form e gruppi di input */
         .form-group {
             display: flex;
             flex-direction: column;
             margin-bottom: 18px;
         }
 
-        /* Ogni label occupa una riga intera */
         label {
             display: block;
             font-size: 14px;
@@ -65,7 +113,6 @@
             color: #1f2328;
         }
 
-        /* Ciascun campo input occupa una riga intera */
         input[type="text"],
         input[type="number"] {
             width: 100%;
@@ -86,7 +133,6 @@
             background-color: #ffffff;
         }
 
-        /* Pulsante Submit */
         .btn-submit {
             width: 100%;
             background-color: #1f2328;
@@ -109,14 +155,11 @@
             transform: scale(0.98);
         }
 
-        /* Area Risultato */
         .result-container {
             margin-top: 20px;
             padding: 16px;
             border-radius: 8px;
             text-align: center;
-            display: none;
-            animation: fadeIn 0.3s ease-in-out;
         }
 
         .result-title {
@@ -136,104 +179,59 @@
             font-weight: 600;
         }
 
-        /* Stili dinamici per la categoria BMI */
+        .error-message {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #ffebe9;
+            color: #cf222e;
+            font-size: 14px;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: 600;
+        }
+
         .status-underweight { background-color: #ddf4ff; color: #0969da; }
         .status-normal { background-color: #dafbe1; color: #1a7f37; }
         .status-overweight { background-color: #fff8c5; color: #9a6700; }
         .status-obese { background-color: #ffebe9; color: #cf222e; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-6px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
     </style>
 </head>
 <body>
 
     <main class="card-container">
-        <!-- Titolo -->
         <h1 class="title">Calcolatore BMI</h1>
 
-        <!-- Form con 3 campi + Pulsante -->
-        <form id="bmiForm" onsubmit="calculateBMI(event)">
-            <!-- Campo Nome -->
+        <form method="POST" action="">
             <div class="form-group">
                 <label for="nome">Nome</label>
-                <input type="text" id="nome" placeholder="Es. Mario Rossi" required>
+                <input type="text" id="nome" name="nome" placeholder="Es. Mario Rossi" value="<?php echo htmlspecialchars($_POST['nome'] ?? ''); ?>" required>
             </div>
 
-            <!-- Campo Peso -->
             <div class="form-group">
                 <label for="peso">Peso (kg)</label>
-                <input type="number" id="peso" step="0.1" min="1" max="300" placeholder="Es. 70" required>
+                <input type="number" id="peso" name="peso" step="0.1" min="1" max="300" placeholder="Es. 70" value="<?php echo htmlspecialchars($_POST['peso'] ?? ''); ?>" required>
             </div>
 
-            <!-- Campo Altezza -->
             <div class="form-group">
                 <label for="altezza">Altezza (cm)</label>
-                <input type="number" id="altezza" step="1" min="30" max="250" placeholder="Es. 175" required>
+                <input type="number" id="altezza" name="altezza" step="1" min="30" max="250" placeholder="Es. 175" value="<?php echo htmlspecialchars($_POST['altezza'] ?? ''); ?>" required>
             </div>
 
-            <!-- Pulsante Submit -->
             <button type="submit" class="btn-submit">Calcola BMI</button>
         </form>
 
-        <!-- Contenitore Risultato -->
-        <div id="result" class="result-container">
-            <div class="result-title" id="greetingText"></div>
-            <div class="result-value" id="bmiValue">--</div>
-            <div class="result-status" id="bmiCategory"></div>
-        </div>
+        <?php if ($resultData): ?>
+            <div class="result-container <?php echo $resultData['classe']; ?>">
+                <div class="result-title">Risultato per <?php echo htmlspecialchars($resultData['nome']); ?>:</div>
+                <div class="result-value"><?php echo $resultData['bmi']; ?> BMI</div>
+                <div class="result-status"><?php echo $resultData['categoria']; ?></div>
+            </div>
+        <?php elseif (!empty($errorMsg)): ?>
+            <div class="error-message">
+                <?php echo $errorMsg; ?>
+            </div>
+        <?php endif; ?>
     </main>
 
-    <script>
-        function calculateBMI(event) {
-            // Previene il ricaricamento della pagina
-            event.preventDefault();
-
-            // Lettura dei valori dagli input
-            const nome = document.getElementById('nome').value.trim();
-            const peso = parseFloat(document.getElementById('peso').value);
-            const altezzaCm = parseFloat(document.getElementById('altezza').value);
-
-            if (!peso || !altezzaCm || altezzaCm <= 0) return;
-
-            // Calcolo BMI: Peso (kg) / (Altezza (m) ^ 2)
-            const altezzaM = altezzaCm / 100;
-            const bmi = (peso / (altezzaM * altezzaM)).toFixed(1);
-
-            // Determinazione categoria
-            let category = '';
-            let statusClass = '';
-
-            if (bmi < 18.5) {
-                category = 'Sottopeso';
-                statusClass = 'status-underweight';
-            } else if (bmi >= 18.5 && bmi < 25) {
-                category = 'Normopeso';
-                statusClass = 'status-normal';
-            } else if (bmi >= 25 && bmi < 30) {
-                category = 'Sovrappeso';
-                statusClass = 'status-overweight';
-            } else {
-                category = 'Obesità';
-                statusClass = 'status-obese';
-            }
-
-            // Aggiornamento DOM
-            const resultBox = document.getElementById('result');
-            const greetingText = document.getElementById('greetingText');
-            const bmiValue = document.getElementById('bmiValue');
-            const bmiCategory = document.getElementById('bmiCategory');
-
-            greetingText.textContent = `Risultato per ${nome}:`;
-            bmiValue.textContent = `${bmi} BMI`;
-            bmiCategory.textContent = category;
-
-            // Reset classi e applicazione stile categoria
-            resultBox.className = 'result-container ' + statusClass;
-            resultBox.style.display = 'block';
-        }
-    </script>
 </body>
 </html>
