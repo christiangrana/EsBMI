@@ -1,6 +1,13 @@
 <?php
 $resultData = null;
 $errorMsg = '';
+$errorNome = '';
+$errorPeso = '';
+$errorAltezza = '';
+
+$valNome = '';
+$valPeso = '';
+$valAltezza = '';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $ip = $_SERVER['REMOTE_ADDR'];
@@ -11,8 +18,28 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $peso_str = trim($_POST['peso'] ?? '');
     $altezza_str = trim($_POST['altezza'] ?? '');
 
-    // Validazione dei dati con comandi standard
-    if ($nome !== '' && is_numeric($peso_str) && is_numeric($altezza_str)) {
+    $valNome = $_POST['nome'] ?? '';
+    $valPeso = $_POST['peso'] ?? '';
+    $valAltezza = $_POST['altezza'] ?? '';
+
+    $valido = true;
+
+    if ($nome === '') {
+        $errorNome = "Valore non valido.";
+        $valido = false;
+    }
+
+    if (!is_numeric($peso_str)) {
+        $errorPeso = "Valore non valido.";
+        $valido = false;
+    }
+
+    if (!is_numeric($altezza_str)) {
+        $errorAltezza = "Valore non valido.";
+        $valido = false;
+    }
+
+    if ($valido) {
         $peso = (float)$peso_str;
         $altezzaCm = (float)$altezza_str;
 
@@ -46,13 +73,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 'classe' => $classe
             ];
         } else {
-            // Log dati non validi
+            if ($peso <= 0) { $errorPeso = "Valore non valido."; }
+            if ($altezzaCm <= 0) { $errorAltezza = "Valore non valido."; }
+
             $rigaLog = "$data,$ora,$ip,NOT_VALID,NOT_VALID,NOT_VALID,NOT_VALID,NOT_VALID\n";
             file_put_contents('log.csv', $rigaLog, FILE_APPEND);
             $errorMsg = "Dati non validi.";
         }
     } else {
-        // Log dati non validi
         $rigaLog = "$data,$ora,$ip,NOT_VALID,NOT_VALID,NOT_VALID,NOT_VALID,NOT_VALID\n";
         file_put_contents('log.csv', $rigaLog, FILE_APPEND);
         $errorMsg = "Dati non validi.";
@@ -133,6 +161,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             background-color: #ffffff;
         }
 
+        .field-error {
+            color: #cf222e;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
         .btn-submit {
             width: 100%;
             background-color: #1f2328;
@@ -204,17 +239,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <form method="POST" action="">
             <div class="form-group">
                 <label for="nome">Nome</label>
-                <input type="text" id="nome" name="nome" placeholder="Es. Mario Rossi" value="<?php echo htmlspecialchars($_POST['nome'] ?? ''); ?>" required>
+                <input type="text" id="nome" name="nome" placeholder="Es. Mario Rossi" value="<?php echo htmlspecialchars($valNome); ?>">
+                <?php if (!empty($errorNome)): ?>
+                    <div class="field-error"><?php echo $errorNome; ?></div>
+                <?php endif; ?>
             </div>
 
             <div class="form-group">
                 <label for="peso">Peso (kg)</label>
-                <input type="number" id="peso" name="peso" step="0.1" min="1" max="300" placeholder="Es. 70" value="<?php echo htmlspecialchars($_POST['peso'] ?? ''); ?>" required>
+                <input type="number" id="peso" name="peso" step="0.1" min="1" max="300" placeholder="Es. 70" value="<?php echo htmlspecialchars($valPeso); ?>">
+                <?php if (!empty($errorPeso)): ?>
+                    <div class="field-error"><?php echo $errorPeso; ?></div>
+                <?php endif; ?>
             </div>
 
             <div class="form-group">
                 <label for="altezza">Altezza (cm)</label>
-                <input type="number" id="altezza" name="altezza" step="1" min="30" max="250" placeholder="Es. 175" value="<?php echo htmlspecialchars($_POST['altezza'] ?? ''); ?>" required>
+                <input type="number" id="altezza" name="altezza" step="1" min="30" max="250" placeholder="Es. 175" value="<?php echo htmlspecialchars($valAltezza); ?>">
+                <?php if (!empty($errorAltezza)): ?>
+                    <div class="field-error"><?php echo $errorAltezza; ?></div>
+                <?php endif; ?>
             </div>
 
             <button type="submit" class="btn-submit">Calcola BMI</button>
